@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agendador por gatilho</title>
+<style>
+:root {
+  color-scheme: dark;
+  --fundo: #0f1419;
+  --painel: #171d25;
+  --borda: #2a323d;
+  --texto: #e6e9ee;
+  --suave: #9aa5b1;
+  --ok: #4ade80;
+  --aviso: #fbbf24;
+  --erro: #f87171;
+  --link: #7cb7ff;
+}
+html { background: var(--fundo); }
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 32px 0 12px; }
+a { color: var(--link); }
+.sub { color: var(--suave); margin: 0 0 16px; }
+.amostra {
+  display: inline-block;
+  padding: 4px 12px;
+  border: 1px solid var(--aviso);
+  border-radius: 999px;
+  color: var(--aviso);
+  font-size: 0.85rem;
+}
+.progresso { color: var(--suave); font-size: 0.9rem; margin: 12px 0 0; }
+.card {
+  background: var(--painel);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.card h3 { font-size: 1.05rem; margin: 0 0 8px; }
+.card p { margin: 0; color: var(--suave); font-size: 0.9rem; }
+.vazio, .falha {
+  background: var(--painel);
+  border: 1px dashed var(--borda);
+  border-radius: 12px;
+  padding: 16px;
+  color: var(--suave);
+}
+.falha { border-color: var(--erro); color: var(--erro); }
+.log {
+  background: var(--painel);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 8px 16px;
+  font: 0.85rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.linha { padding: 8px 0; border-bottom: 1px solid var(--borda); overflow-wrap: anywhere; }
+.linha:last-child { border-bottom: 0; }
+.quando { color: var(--suave); margin-right: 8px; }
+.status { font-weight: 700; margin-right: 8px; }
+.OK { color: var(--ok); }
+.SEM_NOTICIA { color: var(--aviso); }
+.ERRO { color: var(--erro); }
+footer { margin-top: 32px; color: var(--suave); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Agendador por gatilho</h1>
+  <p class="sub">Um robô no GitHub Actions busca uma notícia da BBC News Brasil de hora em hora.</p>
+  <span class="amostra">Versão de amostra: 4 execuções, de hora em hora</span>
+  <p class="progresso" id="progresso"></p>
+
+  <h2>Notícias</h2>
+  <div id="noticias"></div>
+
+  <h2>Log das execuções</h2>
+  <div id="log"></div>
+
+  <footer>
+    Fonte das notícias: <a href="https://www.bbc.com/portuguese" target="_blank" rel="noopener">BBC News Brasil</a>.
+    <a href="https://github.com/CassiaCristina0o/agendador" target="_blank" rel="noopener">Ver o código no GitHub</a>.
+  </footer>
+</main>
+<script>
+const URL_LOG = "https://raw.githubusercontent.com/CassiaCristina0o/agendador/dados/data/log.json";
+const TOTAL = 4;
+const INTERVALO = 5 * 60 * 1000;
+
+const noticias = document.getElementById("noticias");
+const log = document.getElementById("log");
+const progresso = document.getElementById("progresso");
+let temporizador;
+
+function criar(tag, classe, texto) {
+  const e = document.createElement(tag);
+  if (classe) e.className = classe;
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+
+function dataBr(quando) {
+  const [dia, hora] = quando.split(" ");
+  const [a, m, d] = dia.split("-");
+  return `${d}/${m}/${a} ${hora.slice(0, 5)}`;
+}
+
+function mensagem(classe, texto) {
+  return criar("div", classe, texto);
+}
+
+function cartao(r) {
+  const card = criar("div", "card");
+  const titulo = criar("h3");
+  if (/^https:\/\//.test(r.link || "")) {
+    const a = criar("a", null, r.detalhe);
+    a.href = r.link;
+    a.target = "_blank";
+    a.rel = "noopener";
+    titulo.appendChild(a);
+  } else {
+    titulo.textContent = r.detalhe;
+  }
+  card.appendChild(titulo);
+  card.appendChild(criar("p", null, `Fonte: BBC News Brasil · ${dataBr(r.quando)}`));
+  return card;
+}
+
+function linha(r) {
+  const l = criar("div", "linha");
+  l.appendChild(criar("span", "quando", r.quando));
+  l.appendChild(criar("span", `status ${r.status}`, r.status));
+  const texto = [r.etapa, r.detalhe].filter(Boolean).join(" | ");
+  l.appendChild(criar("span", null, texto));
+  return l;
+}
+
+function mostrar(registros) {
+  const recentes = registros.slice().reverse();
+  progresso.textContent = `${registros.length} de ${TOTAL} execuções`;
+
+  noticias.replaceChildren();
+  const boas = recentes.filter((r) => r.status === "OK");
+  if (boas.length) {
+    boas.forEach((r) => noticias.appendChild(cartao(r)));
+  } else {
+    noticias.appendChild(mensagem("vazio", "Nenhuma notícia escolhida até agora."));
+  }
+
+  log.replaceChildren();
+  const caixa = criar("div", "log");
+  recentes.forEach((r) => caixa.appendChild(linha(r)));
+  log.appendChild(caixa);
+
+  if (registros.length >= TOTAL) clearInterval(temporizador);
+}
+
+function semExecucoes() {
+  progresso.textContent = `0 de ${TOTAL} execuções`;
+  noticias.replaceChildren(mensagem("vazio", "Ainda não há execuções."));
+  log.replaceChildren(mensagem("vazio", "O log aparece depois da primeira execução."));
+}
+
+function falhou(motivo) {
+  progresso.textContent = "";
+  noticias.replaceChildren(mensagem("falha", `Não foi possível carregar os dados do log. ${motivo}`));
+  log.replaceChildren();
+}
+
+async function carregar() {
+  try {
+    const resposta = await fetch(URL_LOG, { cache: "no-cache" });
+    if (resposta.status === 404) return semExecucoes();
+    if (!resposta.ok) return falhou(`Resposta ${resposta.status}.`);
+    const registros = await resposta.json();
+    if (!Array.isArray(registros)) return falhou("Formato inesperado.");
+    mostrar(registros);
+  } catch (e) {
+    falhou(e.message);
+  }
+}
+
+carregar();
+temporizador = setInterval(carregar, INTERVALO);
+</script>
+</body>
+</html>
