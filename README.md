@@ -1,7 +1,9 @@
 # Agendador por gatilho (amostra)
 
-Simulador de agendador por gatilho: um robô no GitHub Actions busca, em Python,
-uma notícia positiva no feed da BBC News Brasil e registra cada execução num log.
+Tarefa agendada que roda de verdade, sem simulação: um workflow do GitHub Actions
+dispara por `cron`, um script em Python busca uma notícia positiva no feed da
+BBC News Brasil e cada execução fica registrada num log. Ninguém interage com
+ela: roda sozinha no horário marcado.
 No trabalho uso Airflow; aqui o agendador é o GitHub Actions.
 
 ## Sobre esta amostra
@@ -22,8 +24,8 @@ repositório (`noticias-diaria`).
 4. Grava `data/hoje.json` e `data/log.json` na branch `dados`.
 5. `index.html` lê o log e mostra as notícias.
 
-A `main` só tem o código. A branch `dados` só tem commits do robô
-(`robô: execução 01/04`).
+A `main` só tem o código. A branch `dados` só tem commits automáticos do
+workflow (`execução 01/04`).
 
 ## Resultados e erros
 

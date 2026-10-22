@@ -66,9 +66,9 @@ jobs:
             echo "numero=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          anteriores=$(git rev-list --count --grep='^robô: execução' HEAD 2>/dev/null || echo 0)
+          anteriores=$(git rev-list --count --grep='^execução' HEAD 2>/dev/null || echo 0)
           numero=$((anteriores + 1))
-          git commit -m "$(printf 'robô: execução %02d/%02d' "$numero" "$MAX_EXECUCOES")"
+          git commit -m "$(printf 'execução %02d/%02d' "$numero" "$MAX_EXECUCOES")"
           git push origin HEAD:refs/heads/dados
           echo "numero=$numero" >> "$GITHUB_OUTPUT"
 
