@@ -40,7 +40,7 @@ governo* governador* prefeit* president* ministr* ministerio* congresso senado* 
 deputad* camara parlament* legisla* planalto stf stj tse
 eleica* eleito* eleitor* voto* votac* urna* candidat* partido* politic* diplomat*
 ditadura* democracia* golpe* impeachment
-lula bolsonaro trump biden putin zelensky maduro milei netanyahu
+lula bolsonaro trump biden putin zelensky maduro milei netanyahu vorcaro
 """.split()
 
 POSITIVAS = """
@@ -66,6 +66,12 @@ class ErroDoProcesso(Exception):
         self.etapa = etapa
         self.tipo = tipo
         self.mensagem = mensagem
+
+
+def imagem_do_item(item):
+    miniaturas = item.get("media_thumbnail") or []
+    url = miniaturas[0].get("url", "").strip() if miniaturas else ""
+    return url if url.startswith("https://") else ""
 
 
 def buscar_feed(url=FEED_URL, tentativas=TENTATIVAS, espera=ESPERA):
@@ -97,6 +103,7 @@ def buscar_feed(url=FEED_URL, tentativas=TENTATIVAS, espera=ESPERA):
             "titulo": e.get("title", "").strip(),
             "link": e.get("link", "").strip(),
             "resumo": e.get("summary", ""),
+            "imagem": imagem_do_item(e),
         }
         for e in feed.entries
         if e.get("title") and e.get("link")
@@ -173,13 +180,14 @@ def escrever_json(caminho, dados):
     os.replace(temporario, caminho)
 
 
-def registro(agora, status, detalhe, etapa=None, link=None):
+def registro(agora, status, detalhe, etapa=None, link=None, imagem=None):
     return {
         "quando": agora.strftime("%Y-%m-%d %H:%M:%S"),
         "status": status,
         "etapa": etapa,
         "detalhe": detalhe,
         "link": link,
+        "imagem": imagem or None,
     }
 
 
@@ -191,6 +199,7 @@ def gravar(pasta, agora, log, novo, noticia=None):
                 "data": agora.strftime("%Y-%m-%d"),
                 "titulo": noticia["titulo"],
                 "link": noticia["link"],
+                "imagem": noticia.get("imagem") or None,
                 "fonte": FONTE,
                 "atualizado_em": agora.isoformat(timespec="seconds"),
             },
@@ -215,7 +224,9 @@ def main():
     try:
         noticia, motivo = escolher(buscar_feed(), usados)
         if noticia:
-            novo = registro(agora, "OK", noticia["titulo"], link=noticia["link"])
+            novo = registro(
+                agora, "OK", noticia["titulo"], link=noticia["link"], imagem=noticia.get("imagem")
+            )
         else:
             novo = registro(agora, "SEM_NOTICIA", motivo)
     except ErroDoProcesso as e:

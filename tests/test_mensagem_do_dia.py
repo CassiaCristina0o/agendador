@@ -10,9 +10,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import mensagem_do_dia as m
 
 RSS = b"""<?xml version="1.0"?>
-<rss version="2.0"><channel><title>t</title>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title>t</title>
 <item><title>Cientistas anunciam cura</title><link>https://x/1</link>
+<description>resumo</description>
+<media:thumbnail width="240" height="135" url="https://img.exemplo/a.jpg"/></item>
+<item><title>Cidade tem festival</title><link>https://x/2</link>
 <description>resumo</description></item>
+<item><title>Vacina nova</title><link>https://x/3</link>
+<description>resumo</description>
+<media:thumbnail width="240" height="135" url="http://img.exemplo/b.jpg"/></item>
 </channel></rss>"""
 
 RSS_VAZIO = b"""<?xml version="1.0"?>
@@ -147,9 +153,19 @@ def test_escolher_motivo_conta_cada_descarte():
 def test_buscar_feed_devolve_noticias(monkeypatch):
     falso_get(monkeypatch, [Resposta(200, RSS)])
     noticias = m.buscar_feed("https://feeds.exemplo/rss")
-    assert noticias == [
-        {"titulo": "Cientistas anunciam cura", "link": "https://x/1", "resumo": "resumo"}
-    ]
+    assert noticias[0] == {
+        "titulo": "Cientistas anunciam cura",
+        "link": "https://x/1",
+        "resumo": "resumo",
+        "imagem": "https://img.exemplo/a.jpg",
+    }
+
+
+def test_buscar_feed_imagem_ausente_ou_sem_https_fica_vazia(monkeypatch):
+    falso_get(monkeypatch, [Resposta(200, RSS)])
+    noticias = m.buscar_feed("https://feeds.exemplo/rss")
+    assert noticias[1]["imagem"] == ""
+    assert noticias[2]["imagem"] == ""
 
 
 def test_timeout_repete_e_vira_erro(monkeypatch):
@@ -186,7 +202,7 @@ def test_404_nao_repete(monkeypatch):
 
 def test_recupera_na_segunda_tentativa(monkeypatch):
     chamadas = falso_get(monkeypatch, [requests.Timeout(), Resposta(200, RSS)])
-    assert len(m.buscar_feed("https://feeds.exemplo/rss")) == 1
+    assert len(m.buscar_feed("https://feeds.exemplo/rss")) == 3
     assert len(chamadas) == 2
 
 
@@ -207,6 +223,19 @@ def test_main_ok_grava_hoje_e_log(pasta, monkeypatch):
     log = ler(pasta, "log.json")
     assert [r["status"] for r in log] == ["OK"]
     assert log[0]["link"] == "https://x/1"
+
+
+def test_main_grava_imagem_em_hoje_e_log(pasta, monkeypatch):
+    com_imagem = {**noticia("Cientistas anunciam cura", link="https://x/1"), "imagem": "https://img.exemplo/a.jpg"}
+    rodar(monkeypatch, [com_imagem])
+    assert ler(pasta, "hoje.json")["imagem"] == "https://img.exemplo/a.jpg"
+    assert ler(pasta, "log.json")[0]["imagem"] == "https://img.exemplo/a.jpg"
+
+
+def test_main_sem_imagem_grava_nulo(pasta, monkeypatch):
+    rodar(monkeypatch, [noticia("Cientistas anunciam cura", link="https://x/1")])
+    assert ler(pasta, "hoje.json")["imagem"] is None
+    assert ler(pasta, "log.json")[0]["imagem"] is None
 
 
 def test_main_sem_noticia_mantem_hoje(pasta, monkeypatch):

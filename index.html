@@ -45,6 +45,14 @@ a { color: var(--link); }
   padding: 16px;
   margin-bottom: 12px;
 }
+.card img {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
 .card h3 { font-size: 1.05rem; margin: 0 0 8px; }
 .card p { margin: 0; color: var(--suave); font-size: 0.9rem; }
 .vazio, .falha {
@@ -119,6 +127,15 @@ function mensagem(classe, texto) {
 
 function cartao(r) {
   const card = criar("div", "card");
+  if (/^https:\/\//.test(r.imagem || "")) {
+    const foto = criar("img");
+    foto.src = r.imagem;
+    foto.alt = "";
+    foto.loading = "lazy";
+    foto.referrerPolicy = "no-referrer";
+    foto.onerror = () => foto.remove();
+    card.appendChild(foto);
+  }
   const titulo = criar("h3");
   if (/^https:\/\//.test(r.link || "")) {
     const a = criar("a", null, r.detalhe);

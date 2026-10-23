@@ -59,4 +59,6 @@ python scripts/mensagem_do_dia.py
 ## Fonte
 
 Notícias da [BBC News Brasil](https://www.bbc.com/portuguese). O projeto grava
-apenas título, link e fonte, sempre com o link para a matéria original.
+título, link, fonte e o endereço da miniatura oferecida no próprio feed, sempre
+com o link para a matéria original. A imagem não é copiada: a página a carrega
+direto da BBC.
